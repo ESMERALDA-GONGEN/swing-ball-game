@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ジャストクリック！ボールゲーム</title>
+<style>
+  :root {
+    --bg1: #1a1a2e;
+    --bg2: #16213e;
+    --accent: #00d4ff;
+    --rail: #4a4a6a;
+    --ball: #ff6b6b;
+    --target: #ffd93d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn { touch-action: manipulation; }
+  .game {
+    width: 92vw;
+    max-width: 720px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 28px 28px 36px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .stage { color: var(--accent); }
+  .score { color: var(--target); }
+  .mute {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 18px;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .mute:hover { background: rgba(255,255,255,0.18); }
+  .speed-label {
+    text-align: center;
+    font-size: 13px;
+    color: #9aa0b5;
+    margin-bottom: 28px;
+    letter-spacing: 1px;
+  }
+
+  /* レール表示エリア */
+  .stage-area {
+    position: relative;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .rail {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: var(--rail);
+    border-radius: 4px;
+  }
+  .rail::before, .rail::after {
+    content: "";
+    position: absolute;
+    top: -8px;
+    width: 6px;
+    height: 24px;
+    background: var(--rail);
+    border-radius: 3px;
+  }
+  .rail::before { left: -3px; }
+  .rail::after { right: -3px; }
+
+  /* ターゲット ▽ */
+  .target {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid var(--target);
+    margin-top: -26px;
+    filter: drop-shadow(0 0 6px rgba(255, 217, 61, 0.6));
+  }
+  .target-line {
+    position: absolute;
+    top: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 30px;
+    background: rgba(255, 217, 61, 0.5);
+    margin-top: -15px;
+  }
+
+  /* ボール ● */
+  .ball {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--ball));
+    box-shadow: 0 0 14px rgba(255, 107, 107, 0.8);
+  }
+
+  /* 結果ポップ */
+  .result {
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+    font-size: 30px;
+    font-weight: 800;
+    opacity: 0;
+    transition: opacity 0.15s;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .result.show { opacity: 1; }
+  .result .sub {
+    display: block;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #cfd3e0;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #06121f;
+    background: linear-gradient(135deg, var(--accent), #5ce0ff);
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.2s;
+    box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+  }
+  .btn:hover { box-shadow: 0 10px 28px rgba(0, 212, 255, 0.5); }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled {
+    background: #3a3a55;
+    color: #777;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  /* オーバーレイ（スタート / 結果画面） */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 12, 24, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 24px;
+    z-index: 10;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: 32px; margin-bottom: 12px; }
+  .overlay h1 .em { color: var(--accent); }
+  .overlay p { color: #b8bdd0; margin-bottom: 8px; line-height: 1.7; }
+  .overlay .big-score { font-size: 48px; font-weight: 800; color: var(--target); margin: 14px 0; }
+  .overlay .btn { max-width: 320px; margin-top: 18px; }
+  .rank { font-size: 56px; font-weight: 900; margin: 6px 0; }
+</style>
+</head>
+<body>
+  <div class="game">
+    <div class="topbar">
+      <span class="stage">STAGE <span id="stageNum">1</span> / 5</span>
+      <button id="muteBtn" class="mute" title="音のON/OFF">🔊</button>
+      <span class="score">SCORE <span id="scoreNum">0</span></span>
+    </div>
+    <div class="speed-label" id="speedLabel">SPEED ★☆☆☆☆</div>
+
+    <div class="stage-area">
+      <div class="rail" id="rail">
+        <div class="target-line" id="targetLine"></div>
+        <div class="target" id="target"></div>
+        <div class="ball" id="ball"></div>
+      </div>
+      <div class="result" id="result"></div>
+    </div>
+
+    <button class="btn" id="actionBtn">CLICK!</button>
+  </div>
+
+  <!-- スタート / 終了オーバーレイ -->
+  <div class="overlay" id="overlay">
+    <h1>ジャスト<span class="em">クリック！</span></h1>
+    <p>左右に往復するボールが<br><span style="color:var(--target)">▽ ターゲット</span>に重なった瞬間にクリック！</p>
+    <p>ピッタリ狙うほど高得点。全5ステージ、だんだん速くなるよ。</p>
+    <button class="btn" id="startBtn">START</button>
+  </div>
+
+<script>
+(() => {
+  const TOTAL_STAGES = 5;
+  // ステージごとの設定：speed = 1往復にかかる時間(ms)が短いほど速い
+  const stageConfig = [
+    { duration: 2600 },
+    { duration: 2100 },
+    { duration: 1650 },
+    { duration: 1250 },
+    { duration: 900  },
+  ];
+
+  const els = {
+    rail: document.getElementById('rail'),
+    ball: document.getElementById('ball'),
+    target: document.getElementById('target'),
+    targetLine: document.getElementById('targetLine'),
+    stageNum: document.getElementById('stageNum'),
+    scoreNum: document.getElementById('scoreNum'),
+    speedLabel: document.getElementById('speedLabel'),
+    actionBtn: document.getElementById('actionBtn'),
+    result: document.getElementById('result'),
+    overlay: document.getElementById('overlay'),
+    startBtn: document.getElementById('startBtn'),
+    muteBtn: document.getElementById('muteBtn'),
+  };
+
+  let stage = 0;          // 0-indexed
+  let score = 0;
+  let targetPct = 50;     // ターゲット位置（レール幅に対する%）
+  let rafId = null;
+  let startTime = 0;
+  let duration = 2600;
+  let running = false;
+
+  /* =========================================================
+     サウンドエンジン（Web Audio API・外部ファイル不要）
+     BGM＝16ステップのループを先読みスケジューラで再生。
+     ステージが上がるほどテンポUPで派手に。
+     ========================================================= */
+  const Sound = {
+    ctx: null,
+    master: null,
+    bgmGain: null,
+    timer: null,
+    step: 0,
+    bpm: 124,
+    nextTime: 0,
+    enabled: true,
+
+    init() {
+      if (this.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.9;
+      this.master.connect(this.ctx.destination);
+      this.bgmGain = this.ctx.createGain();
+      this.bgmGain.gain.value = 0.55;
+      this.bgmGain.connect(this.master);
+    },
+    resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+
+    // 単音
+    tone(freq, t, dur, type = 'square', vol = 0.3, dest) {
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(dest || this.master);
+      o.start(t); o.stop(t + dur + 0.03);
+    },
+    // ノイズ（ドラム用）
+    noise(t, dur, vol = 0.3, hp = 1000, dest) {
+      const n = Math.floor(this.ctx.sampleRate * dur);
+      const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const f = this.ctx.createBiquadFilter();
+      f.type = 'highpass'; f.frequency.value = hp;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(g); g.connect(dest || this.master);
+      src.start(t); src.stop(t + dur);
+    },
+    kick(t) {
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.9, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g); g.connect(this.bgmGain);
+      o.start(t); o.stop(t + 0.18);
+    },
+
+    // 16ステップのパターン（ペンタトニックで明るく派手に）
+    LEAD: [440, 523, 659, 523, 587, 659, 880, 659, 523, 659, 587, 523, 440, 523, 587, 659],
+    BASS: [110, 110, 110, 110, 87.31, 87.31, 87.31, 87.31, 98, 98, 98, 98, 130.81, 130.81, 98, 98],
+
+    playStep(s, t) {
+      // ドラム
+      if (s % 4 === 0) this.kick(t);
+      if (s === 4 || s === 12) this.noise(t, 0.18, 0.35, 1800, this.bgmGain); // スネア
+      this.noise(t, 0.04, s % 2 === 0 ? 0.12 : 0.07, 7000, this.bgmGain);     // ハイハット
+      // ベース
+      this.tone(this.BASS[s], t, 0.18, 'triangle', 0.32, this.bgmGain);
+      // リード（8分で間引き＝軽快に）
+      if (s % 2 === 0) this.tone(this.LEAD[s], t, 0.16, 'square', 0.16, this.bgmGain);
+    },
+
+    startBgm(stageIndex) {
+      if (!this.ctx) return;
+      this.bpm = 124 + stageIndex * 16;   // ステージごとに加速
+      this.step = 0;
+      this.nextTime = this.ctx.currentTime + 0.08;
+      if (this.timer) clearInterval(this.timer);
+      this.timer = setInterval(() => this.scheduler(), 25);
+    },
+    scheduler() {
+      if (!this.ctx) return;
+      const sec16 = (60 / this.bpm) / 4;
+      while (this.nextTime < this.ctx.currentTime + 0.15) {
+        if (this.enabled) this.playStep(this.step, this.nextTime);
+        this.nextTime += sec16;
+        this.step = (this.step + 1) % 16;
+      }
+    },
+    stopBgm() { if (this.timer) { clearInterval(this.timer); this.timer = null; } },
+
+    // 効果音（判定ごと）
+    hit(label) {
+      if (!this.enabled || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      if (label === 'PERFECT') {
+        [523, 659, 784, 1046, 1318].forEach((f, i) =>
+          this.tone(f, t + i * 0.05, 0.25, 'square', 0.3));
+        this.noise(t, 0.3, 0.2, 6000);
+      } else if (label === 'GREAT') {
+        [523, 784, 1046].forEach((f, i) => this.tone(f, t + i * 0.05, 0.22, 'square', 0.28));
+      } else if (label === 'GOOD') {
+        [440, 660].forEach((f, i) => this.tone(f, t + i * 0.05, 0.2, 'square', 0.26));
+      } else if (label === 'OK') {
+        this.tone(330, t, 0.2, 'triangle', 0.26);
+      } else { // MISS
+        this.tone(160, t, 0.32, 'sawtooth', 0.3);
+        this.tone(120, t + 0.08, 0.32, 'sawtooth', 0.3);
+      }
+    },
+    start() {
+      if (!this.enabled || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      [392, 523, 784].forEach((f, i) => this.tone(f, t + i * 0.07, 0.22, 'square', 0.3));
+    },
+    fanfare(good) {
+      if (!this.enabled || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      const seq = good ? [523, 659, 784, 1046, 1318, 1046, 1318]
+                       : [523, 494, 440, 392];
+      seq.forEach((f, i) => this.tone(f, t + i * 0.12, 0.4, 'square', 0.32));
+    },
+  };
+
+  // ボール位置を時間から計算（左→右→左 の往復）
+  function ballPct(elapsed) {
+    const t = (elapsed % duration) / duration;   // 0..1
+    const tri = t < 0.5 ? t * 2 : (1 - t) * 2;     // 三角波 0..1..0
+    // 端での張り付きを避けるため少しマージン
+    return 4 + tri * 92;
+  }
+
+  function loop(now) {
+    if (!running) return;
+    const elapsed = now - startTime;
+    const pct = ballPct(elapsed);
+    els.ball.style.left = pct + '%';
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function setupStage() {
+    duration = stageConfig[stage].duration;
+    els.stageNum.textContent = stage + 1;
+    els.speedLabel.textContent = 'SPEED ' + '★'.repeat(stage + 1) + '☆'.repeat(TOTAL_STAGES - stage - 1);
+
+    // ターゲットは 15%〜85% のランダム位置
+    targetPct = 15 + Math.random() * 70;
+    els.target.style.left = targetPct + '%';
+    els.targetLine.style.left = targetPct + '%';
+
+    els.actionBtn.disabled = false;
+    els.actionBtn.textContent = 'CLICK!';
+
+    Sound.startBgm(stage);
+
+    running = true;
+    startTime = performance.now();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function judge() {
+    if (!running) return;
+    running = false;
+    cancelAnimationFrame(rafId);
+    els.actionBtn.disabled = true;
+
+    const elapsed = performance.now() - startTime;
+    const ballPos = ballPct(elapsed);
+
+    // px換算でズレを出す
+    const railWidth = els.rail.clientWidth;
+    const diffPx = Math.abs(ballPos - targetPct) / 100 * railWidth;
+
+    let label, gain, color;
+    if (diffPx <= 6)        { label = 'PERFECT'; gain = 100; color = '#00ffae'; }
+    else if (diffPx <= 18)  { label = 'GREAT';   gain = 70;  color = '#7cffc4'; }
+    else if (diffPx <= 40)  { label = 'GOOD';    gain = 40;  color = '#ffd93d'; }
+    else if (diffPx <= 80)  { label = 'OK';      gain = 15;  color = '#ffa94d'; }
+    else                    { label = 'MISS';    gain = 0;   color = '#ff6b6b'; }
+
+    score += gain;
+    els.scoreNum.textContent = score;
+
+    Sound.stopBgm();
+    Sound.hit(label);
+
+    showResult(label, gain, diffPx, color);
+
+    setTimeout(() => {
+      hideResult();
+      stage++;
+      if (stage >= TOTAL_STAGES) {
+        endGame();
+      } else {
+        setupStage();
+      }
+    }, 1100);
+  }
+
+  function showResult(label, gain, diffPx, color) {
+    els.result.style.color = color;
+    els.result.innerHTML = label +
+      '<span class="sub">ズレ ' + Math.round(diffPx) + 'px / +' + gain + '点</span>';
+    els.result.classList.add('show');
+  }
+  function hideResult() {
+    els.result.classList.remove('show');
+  }
+
+  function startGame() {
+    Sound.init();
+    Sound.resume();
+    Sound.start();
+    stage = 0;
+    score = 0;
+    els.scoreNum.textContent = 0;
+    els.overlay.classList.add('hidden');
+    setupStage();
+  }
+
+  function endGame() {
+    Sound.stopBgm();
+    const max = TOTAL_STAGES * 100;
+    let rank, msg;
+    const ratio = score / max;
+    if (ratio >= 0.95)      { rank = 'S'; msg = '神業！'; }
+    else if (ratio >= 0.8)  { rank = 'A'; msg = 'お見事！'; }
+    else if (ratio >= 0.6)  { rank = 'B'; msg = 'なかなか！'; }
+    else if (ratio >= 0.4)  { rank = 'C'; msg = 'もう一息！'; }
+    else                    { rank = 'D'; msg = '練習あるのみ！'; }
+    Sound.fanfare(ratio >= 0.6);
+
+    els.overlay.innerHTML =
+      '<h1>RESULT</h1>' +
+      '<div class="rank" style="color:var(--accent)">' + rank + '</div>' +
+      '<p>' + msg + '</p>' +
+      '<div class="big-score">' + score + ' / ' + max + '</div>' +
+      '<button class="btn" id="retryBtn">もう一回！</button>';
+    els.overlay.classList.remove('hidden');
+    document.getElementById('retryBtn').addEventListener('click', startGame);
+  }
+
+  // 操作：ボタン or スペース/クリックで判定
+  els.actionBtn.addEventListener('click', judge);
+  els.startBtn.addEventListener('click', startGame);
+  els.muteBtn.addEventListener('click', () => {
+    Sound.enabled = !Sound.enabled;
+    els.muteBtn.textContent = Sound.enabled ? '🔊' : '🔇';
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (running) judge();
+    }
+  });
+})();
+</script>
+</body>
+</html>
