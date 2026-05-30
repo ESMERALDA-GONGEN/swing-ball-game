@@ -3,20 +3,23 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>ジャストクリック！ボールゲーム</title>
+<title>ジャストクリック！</title>
 <style>
   :root {
-    --bg1: #1a1a2e;
-    --bg2: #16213e;
+    --bg1: #11132a;
+    --bg2: #1d1b3a;
     --accent: #00d4ff;
-    --rail: #4a4a6a;
     --ball: #ff6b6b;
     --target: #ffd93d;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
   body {
     font-family: "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
-    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    background:
+      radial-gradient(1200px 600px at 20% -10%, #2a2566, transparent),
+      radial-gradient(1000px 500px at 100% 110%, #173a55, transparent),
+      linear-gradient(135deg, var(--bg1), var(--bg2));
     color: #fff;
     min-height: 100vh;
     display: flex;
@@ -26,258 +29,386 @@
     -webkit-user-select: none;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
   }
-  .btn { touch-action: manipulation; }
+
   .game {
-    width: 92vw;
-    max-width: 720px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-    padding: 28px 28px 36px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    position: relative;
+    width: 94vw;
+    max-width: 760px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 22px;
+    padding: 22px 22px 30px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
   }
+
   .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    font-size: 18px;
-    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 17px;
+    font-weight: 800;
   }
-  .stage { color: var(--accent); }
-  .score { color: var(--target); }
+  .stage { color: var(--accent); text-shadow: 0 0 12px rgba(0,212,255,.5); }
+  .score { color: var(--target); text-shadow: 0 0 12px rgba(255,217,61,.5); }
   .mute {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
     color: #fff;
     font-size: 18px;
-    width: 40px; height: 40px;
-    border-radius: 10px;
+    width: 42px; height: 42px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.1s;
   }
-  .mute:hover { background: rgba(255,255,255,0.18); }
+  .mute:hover { background: rgba(255,255,255,0.2); }
+  .mute:active { transform: scale(0.92); }
   .speed-label {
     text-align: center;
     font-size: 13px;
-    color: #9aa0b5;
-    margin-bottom: 28px;
-    letter-spacing: 1px;
+    color: #aeb4cc;
+    margin-bottom: 16px;
+    letter-spacing: 2px;
   }
 
-  /* レール表示エリア */
+  /* ===== ステージ表示エリア（レイヤー） ===== */
   .stage-area {
     position: relative;
-    height: 190px;
+    height: 250px;
     display: flex;
     align-items: center;
-    margin-bottom: 24px;
-    padding: 0 18px;
-    border-radius: 16px;
+    margin-bottom: 22px;
+    padding: 0 22px;
+    border-radius: 18px;
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.35);
+    will-change: transform;
   }
-  /* ステージごとの背景シーン */
+  /* 背景イラスト */
   .scene-bg {
     position: absolute;
     inset: 0;
     z-index: 0;
-    transition: background 0.5s ease;
+    background-size: cover;
+    background-position: center;
+    transform: scale(1.08);
+    will-change: transform, opacity;
   }
-  .scene-deco {
+  .scene-bg.fade { animation: bgFade 0.6s ease; }
+  @keyframes bgFade { from { opacity: 0; } to { opacity: 1; } }
+  /* 読みやすさ用のヴェール */
+  .scene-veil {
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0) 35%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.35));
   }
-  .scene-deco span {
+  /* VFXキャンバス */
+  .vfx {
     position: absolute;
-    font-size: 30px;
-    opacity: 0.9;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
   }
   .stage-name {
     position: absolute;
     left: 14px;
-    top: 10px;
-    z-index: 3;
+    top: 12px;
+    z-index: 6;
     font-size: 13px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.85);
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    font-weight: 800;
+    color: #fff;
+    background: rgba(0,0,0,0.35);
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.25);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
     letter-spacing: 1px;
+    backdrop-filter: blur(3px);
   }
+
+  /* レール */
   .rail {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     width: 100%;
-    height: 8px;
-    background: rgba(255,255,255,0.25);
-    border-radius: 4px;
+    height: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.2));
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 0 6px rgba(255,255,255,0.4);
   }
   .rail::before, .rail::after {
     content: "";
     position: absolute;
-    top: -8px;
-    width: 6px;
+    top: -7px;
+    width: 8px;
     height: 24px;
-    background: var(--rail);
-    border-radius: 3px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(255,255,255,0.5);
   }
-  .rail::before { left: -3px; }
-  .rail::after { right: -3px; }
+  .rail::before { left: -4px; }
+  .rail::after { right: -4px; }
 
-  /* ターゲット（入れる場所の絵文字） */
+  /* 入れる場所（ターゲット） */
   .target {
     position: absolute;
     top: 50%;
-    z-index: 3;
-    transform: translate(-50%, -50%);
-    font-size: 44px;
-    line-height: 1;
-    filter: drop-shadow(0 0 10px rgba(255, 217, 61, 0.55));
+    z-index: 4;
+    width: 66px; height: 66px;
+    margin-top: -33px;
+    transform: translateX(-50%);
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    border: 3px solid #ffe27a;
+    box-shadow: 0 0 22px rgba(255, 217, 61, 0.7), 0 6px 14px rgba(0,0,0,0.45);
+    animation: targetGlow 1.4s ease-in-out infinite;
+  }
+  @keyframes targetGlow {
+    0%,100% { box-shadow: 0 0 18px rgba(255,217,61,0.55), 0 6px 14px rgba(0,0,0,0.45); }
+    50%     { box-shadow: 0 0 30px rgba(255,217,61,0.95), 0 6px 14px rgba(0,0,0,0.45); }
   }
   .target-line {
     position: absolute;
     top: 50%;
-    z-index: 2;
+    z-index: 3;
     transform: translateX(-50%);
-    width: 2px;
-    height: 46px;
-    background: rgba(255, 255, 255, 0.45);
-    margin-top: -23px;
+    width: 3px;
+    height: 70px;
+    margin-top: -35px;
+    background: linear-gradient(180deg, rgba(255,226,122,0), rgba(255,226,122,0.9), rgba(255,226,122,0));
+    border-radius: 2px;
+  }
+  .target.pop { animation: targetPop 0.4s ease; }
+  @keyframes targetPop {
+    0% { transform: translateX(-50%) scale(1); }
+    45% { transform: translateX(-50%) scale(1.45); }
+    100% { transform: translateX(-50%) scale(1); }
   }
 
-  /* 動くもの（ボール役の絵文字） */
+  /* 動くもの（ボール役） */
   .ball {
     position: absolute;
     top: 50%;
     left: 4%;
-    z-index: 4;
-    transform: translate(-50%, -50%);
-    font-size: 34px;
-    line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
+    z-index: 6;
+    width: 54px; height: 54px;
+    margin-top: -27px;
+    transform: translateX(-50%);
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.95);
+    box-shadow: 0 0 18px rgba(255,255,255,0.5), 0 5px 12px rgba(0,0,0,0.5);
     will-change: left, transform, opacity;
   }
   .ball.score-in {
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    transform: translate(-50%, -50%) scale(0.1);
+    transition: transform 0.35s cubic-bezier(.5,-0.4,.4,1.4), opacity 0.35s ease;
+    transform: translateX(-50%) scale(0.05);
     opacity: 0;
-  }
-  .target.pop {
-    animation: targetPop 0.35s ease;
-  }
-  @keyframes targetPop {
-    0% { transform: translate(-50%, -50%) scale(1); }
-    50% { transform: translate(-50%, -50%) scale(1.4); }
-    100% { transform: translate(-50%, -50%) scale(1); }
   }
 
   /* 結果ポップ */
   .result {
     position: absolute;
     left: 50%;
-    top: 12px;
-    transform: translateX(-50%);
-    font-size: 30px;
-    font-weight: 800;
+    top: 18px;
+    z-index: 7;
+    transform: translateX(-50%) scale(0.6);
+    font-size: 40px;
+    font-weight: 900;
     opacity: 0;
-    transition: opacity 0.15s;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    transition: opacity 0.15s, transform 0.25s cubic-bezier(.2,1.4,.4,1);
+    text-shadow: 0 3px 10px rgba(0,0,0,0.7);
+    -webkit-text-stroke: 1px rgba(0,0,0,0.35);
+    letter-spacing: 1px;
+    text-align: center;
+    pointer-events: none;
   }
-  .result.show { opacity: 1; }
+  .result.show { opacity: 1; transform: translateX(-50%) scale(1); }
   .result .sub {
     display: block;
-    text-align: center;
     font-size: 14px;
-    font-weight: 600;
-    color: #cfd3e0;
+    font-weight: 700;
+    color: #eef1fb;
+    -webkit-text-stroke: 0;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
   }
 
+  /* ステージタイトルカード（遷移演出） */
+  .stage-card {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(8,10,24,0.45);
+    backdrop-filter: blur(2px);
+  }
+  .stage-card.show { animation: cardShow 1.1s ease forwards; }
+  @keyframes cardShow {
+    0%   { opacity: 0; transform: scale(1.05); }
+    15%  { opacity: 1; transform: scale(1); }
+    72%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.98); }
+  }
+  .stage-card .num {
+    font-size: 16px; font-weight: 800; letter-spacing: 4px;
+    color: var(--accent); text-shadow: 0 0 14px rgba(0,212,255,.7);
+  }
+  .stage-card .title {
+    font-size: 34px; font-weight: 900;
+    text-shadow: 0 3px 16px rgba(0,0,0,0.8);
+  }
+  .stage-card .spd { font-size: 14px; color: #ffd93d; letter-spacing: 2px; }
+
+  /* ボタン */
   .btn {
     display: block;
     width: 100%;
     padding: 18px;
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 900;
     letter-spacing: 2px;
     color: #06121f;
     background: linear-gradient(135deg, var(--accent), #5ce0ff);
     border: none;
-    border-radius: 14px;
+    border-radius: 16px;
     cursor: pointer;
-    transition: transform 0.05s, box-shadow 0.2s;
-    box-shadow: 0 8px 24px rgba(0, 212, 255, 0.35);
+    transition: transform 0.06s, box-shadow 0.2s, filter 0.2s;
+    box-shadow: 0 10px 26px rgba(0, 212, 255, 0.4);
+    touch-action: manipulation;
   }
-  .btn:hover { box-shadow: 0 10px 28px rgba(0, 212, 255, 0.5); }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled {
-    background: #3a3a55;
-    color: #777;
-    cursor: default;
-    box-shadow: none;
+  .btn:hover { box-shadow: 0 12px 32px rgba(0, 212, 255, 0.6); filter: brightness(1.05); }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { background: #3a3a55; color: #777; cursor: default; box-shadow: none; }
+  #actionBtn {
+    font-size: 26px;
+    background: linear-gradient(135deg, #ff5d8f, #ff9a5c);
+    color: #2a0a16;
+    box-shadow: 0 12px 30px rgba(255, 93, 143, 0.45);
   }
+  #actionBtn:hover { box-shadow: 0 14px 36px rgba(255, 93, 143, 0.65); }
+  #actionBtn:disabled { background: #3a3a55; color: #777; box-shadow: none; }
 
-  /* オーバーレイ（スタート / 結果画面） */
+  /* オーバーレイ（スタート / 結果） */
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 12, 24, 0.85);
+    background:
+      radial-gradient(900px 500px at 50% 0%, rgba(60,40,120,0.6), transparent),
+      rgba(8, 10, 22, 0.9);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
     text-align: center;
-    padding: 24px;
-    z-index: 10;
+    padding: 26px;
+    z-index: 12;
+    backdrop-filter: blur(4px);
   }
   .overlay.hidden { display: none; }
-  .overlay h1 { font-size: 32px; margin-bottom: 12px; }
-  .overlay h1 .em { color: var(--accent); }
-  .overlay p { color: #b8bdd0; margin-bottom: 8px; line-height: 1.7; }
-  .overlay .big-score { font-size: 48px; font-weight: 800; color: var(--target); margin: 14px 0; }
+  .overlay h1 { font-size: 38px; margin-bottom: 14px; text-shadow: 0 4px 18px rgba(0,0,0,0.6); }
+  .overlay h1 .em { color: var(--accent); text-shadow: 0 0 18px rgba(0,212,255,.7); }
+  .overlay p { color: #c6cbe0; margin-bottom: 8px; line-height: 1.7; }
+  .overlay .big-score { font-size: 52px; font-weight: 900; color: var(--target); margin: 12px 0; text-shadow: 0 0 20px rgba(255,217,61,.5); }
   .overlay .btn { max-width: 320px; margin-top: 18px; }
-  .rank { font-size: 56px; font-weight: 900; margin: 6px 0; }
-  .mode-select {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 100%;
-    max-width: 360px;
-    margin-top: 16px;
+  .rank {
+    font-size: 88px; font-weight: 900; margin: 2px 0; line-height: 1;
+    background: linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 20px rgba(0,212,255,.5));
   }
-  .mode-select .btn { flex: 1; min-width: 140px; margin-top: 0; font-size: 18px; }
+  .preview {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    margin: 14px 0 4px;
+  }
+  .preview .chip {
+    width: 54px; height: 54px; border-radius: 50%;
+    background-size: cover; background-position: center;
+    border: 2px solid rgba(255,255,255,0.7);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    animation: float 2.4s ease-in-out infinite;
+  }
+  .preview .chip:nth-child(2) { animation-delay: .3s; }
+  .preview .chip:nth-child(3) { animation-delay: .6s; }
+  .preview .chip:nth-child(4) { animation-delay: .9s; }
+  .preview .chip:nth-child(5) { animation-delay: 1.2s; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+  .mode-select {
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+    width: 100%; max-width: 380px; margin-top: 18px;
+  }
+  .mode-select .btn { flex: 1; min-width: 150px; margin-top: 0; font-size: 18px; }
   .btn-sub {
-    background: linear-gradient(135deg, #6c7a96, #97a6c2);
+    background: linear-gradient(135deg, #6c7a96, #aab6d0);
     color: #0c1322;
     box-shadow: 0 8px 24px rgba(120, 140, 180, 0.35);
   }
   .btn-sub:hover { box-shadow: 0 10px 28px rgba(120, 140, 180, 0.5); }
 
-  /* シンプル版の見た目（● と ▽） */
+  /* シンプル版（● と ▽） */
   .ball.simple {
-    width: 26px; height: 26px;
-    font-size: 0;
+    width: 28px; height: 28px; margin-top: -14px;
+    background-image: none !important;
+    border: none;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #fff, var(--ball));
-    box-shadow: 0 0 14px rgba(255, 107, 107, 0.8);
-    filter: none;
+    box-shadow: 0 0 16px rgba(255, 107, 107, 0.9);
   }
   .target.simple {
-    width: 0; height: 0;
-    font-size: 0;
-    border-left: 14px solid transparent;
-    border-right: 14px solid transparent;
-    border-top: 22px solid var(--target);
-    margin-top: -26px;
-    filter: drop-shadow(0 0 6px rgba(255, 217, 61, 0.6));
+    width: 0; height: 0; margin-top: -30px;
+    background-image: none !important;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-top: 24px solid var(--target);
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+    filter: drop-shadow(0 0 8px rgba(255, 217, 61, 0.7));
+  }
+
+  /* ローディング */
+  .loading {
+    position: fixed; inset: 0; z-index: 30;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 18px; transition: opacity 0.4s ease;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 54px; height: 54px; border-radius: 50%;
+    border: 5px solid rgba(255,255,255,0.15);
+    border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading .lt { color: #aeb4cc; letter-spacing: 3px; font-weight: 700; font-size: 14px; }
+
+  @media (max-width: 520px) {
+    .stage-area { height: 200px; }
+    .ball { width: 46px; height: 46px; margin-top: -23px; }
+    .target { width: 56px; height: 56px; margin-top: -28px; }
+    .overlay h1 { font-size: 30px; }
+    .rank { font-size: 70px; }
   }
 </style>
 </head>
 <body>
-  <div class="game">
+  <div class="game" id="game">
     <div class="topbar">
       <span class="stage">STAGE <span id="stageNum">1</span> / 5</span>
       <button id="muteBtn" class="mute" title="音のON/OFF">🔊</button>
@@ -285,9 +416,10 @@
     </div>
     <div class="speed-label" id="speedLabel">SPEED ★☆☆☆☆</div>
 
-    <div class="stage-area">
+    <div class="stage-area" id="stageArea">
       <div class="scene-bg" id="sceneBg"></div>
-      <div class="scene-deco" id="sceneDeco"></div>
+      <div class="scene-veil"></div>
+      <canvas class="vfx" id="vfx"></canvas>
       <div class="stage-name" id="stageName"></div>
       <div class="rail" id="rail">
         <div class="target-line" id="targetLine"></div>
@@ -295,63 +427,66 @@
         <div class="ball" id="ball"></div>
       </div>
       <div class="result" id="result"></div>
+      <div class="stage-card" id="stageCard">
+        <div class="num" id="cardNum">STAGE 1</div>
+        <div class="title" id="cardTitle"></div>
+        <div class="spd" id="cardSpd"></div>
+      </div>
     </div>
 
     <button class="btn" id="actionBtn">CLICK!</button>
   </div>
 
-  <!-- スタート / 終了オーバーレイ -->
+  <!-- スタート / 結果 -->
   <div class="overlay" id="overlay">
     <h1>ジャスト<span class="em">クリック！</span></h1>
     <p>左右に動くものを、入れる場所に<br>ピッタリ重なった瞬間にクリック！</p>
-    <p>ピッタリ狙うほど高得点。全5ステージ、だんだん速くなるよ。</p>
-    <p style="color:#9aa0b5; font-size:14px; margin-top:6px;">モードを選んでスタート</p>
+    <div class="preview" id="preview"></div>
+    <p style="color:#aeb4cc; font-size:14px; margin-top:8px;">全5ステージ、だんだん速くなるよ。モードを選んでスタート</p>
     <div class="mode-select">
       <button class="btn" id="startThemed">🎨 イラスト版</button>
       <button class="btn btn-sub" id="startSimple">⚪ シンプル版</button>
     </div>
   </div>
 
+  <!-- ローディング -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="lt">LOADING…</div>
+  </div>
+
 <script>
 (() => {
   const TOTAL_STAGES = 5;
-  // ステージごとの設定：speed = 1往復にかかる時間(ms)が短いほど速い
-  // theme: 動くもの(obj) → 入れる場所(goal)、背景(bg)、装飾(deco)
+
+  // ステージ設定：duration(往復時間), name, ball/goal/bg画像, accent(エフェクト色)
   const stageConfig = [
-    {
-      duration: 2600, name: '🍙 ランチタイム', obj: '🍙', goal: '😋',
-      bg: 'linear-gradient(135deg, #ffd29a, #ff9a76)',
-      deco: [['🍱', '12%', '70%'], ['🍵', '82%', '66%'], ['🥢', '46%', '78%']],
-    },
-    {
-      duration: 2100, name: '🚶 通勤ラッシュ', obj: '🚶', goal: '🛗',
-      bg: 'linear-gradient(135deg, #cfd9e8, #8fa3bf)',
-      deco: [['🏢', '10%', '24%'], ['🏢', '30%', '20%'], ['💼', '60%', '74%'], ['☕', '86%', '72%']],
-    },
-    {
-      duration: 1650, name: '⚽ スタジアム', obj: '⚽', goal: '🥅',
-      bg: 'linear-gradient(135deg, #7ed957, #2f9e44)',
-      deco: [['🏟️', '14%', '22%'], ['🚩', '88%', '26%'], ['👟', '40%', '80%']],
-    },
-    {
-      duration: 1250, name: '🚀 宇宙開発', obj: '🚀', goal: '🌙',
-      bg: 'linear-gradient(135deg, #1b1b3a, #2c2c6c)',
-      deco: [['⭐', '18%', '26%'], ['✨', '50%', '18%'], ['⭐', '78%', '30%'], ['🛰️', '64%', '72%']],
-    },
-    {
-      duration: 900, name: '⚾ 大リーグ', obj: '⚾', goal: '🧤',
-      bg: 'linear-gradient(135deg, #14213d, #2a4d69)',
-      deco: [['💡', '12%', '18%'], ['💡', '50%', '14%'], ['💡', '86%', '18%'], ['🏟️', '70%', '74%']],
-    },
+    { duration: 2600, name: 'ランチタイム', emoji: '🍙',
+      ball: 'assets/s1_onigiri.png', goal: 'assets/s1_mouth.png', bg: 'assets/bg1_lunch.png',
+      accent: '#ffb347' },
+    { duration: 2100, name: '通勤ラッシュ', emoji: '🚶',
+      ball: 'assets/s2_person.png', goal: 'assets/s2_elevator.png', bg: 'assets/bg2_office.png',
+      accent: '#6cc0ff' },
+    { duration: 1650, name: 'スタジアム', emoji: '⚽',
+      ball: 'assets/s3_ball.png', goal: 'assets/s3_goal.png', bg: 'assets/bg3_stadium.png',
+      accent: '#7ed957' },
+    { duration: 1250, name: '宇宙開発', emoji: '🚀',
+      ball: 'assets/s4_rocket.png', goal: 'assets/s4_moon.png', bg: 'assets/bg4_space.png',
+      accent: '#b388ff' },
+    { duration: 900,  name: '大リーグ', emoji: '⚾',
+      ball: 'assets/s5_baseball.png', goal: 'assets/s5_mitt.png', bg: 'assets/bg5_baseball.png',
+      accent: '#8fd3ff' },
   ];
 
   const els = {
+    game: document.getElementById('game'),
+    stageArea: document.getElementById('stageArea'),
+    sceneBg: document.getElementById('sceneBg'),
+    vfx: document.getElementById('vfx'),
     rail: document.getElementById('rail'),
     ball: document.getElementById('ball'),
     target: document.getElementById('target'),
     targetLine: document.getElementById('targetLine'),
-    sceneBg: document.getElementById('sceneBg'),
-    sceneDeco: document.getElementById('sceneDeco'),
     stageName: document.getElementById('stageName'),
     stageNum: document.getElementById('stageNum'),
     scoreNum: document.getElementById('scoreNum'),
@@ -362,32 +497,27 @@
     startThemed: document.getElementById('startThemed'),
     startSimple: document.getElementById('startSimple'),
     muteBtn: document.getElementById('muteBtn'),
+    stageCard: document.getElementById('stageCard'),
+    cardNum: document.getElementById('cardNum'),
+    cardTitle: document.getElementById('cardTitle'),
+    cardSpd: document.getElementById('cardSpd'),
+    preview: document.getElementById('preview'),
+    loading: document.getElementById('loading'),
   };
 
-  let stage = 0;          // 0-indexed
+  let stage = 0;
   let score = 0;
-  let gameMode = 'themed'; // 'themed' or 'simple'
-  let targetPct = 50;     // ターゲット位置（レール幅に対する%）
-  let rafId = null;
+  let gameMode = 'themed';
+  let targetPct = 50;
   let startTime = 0;
   let duration = 2600;
   let running = false;
+  let curAccent = '#00d4ff';
 
-  /* =========================================================
-     サウンドエンジン（Web Audio API・外部ファイル不要）
-     BGM＝16ステップのループを先読みスケジューラで再生。
-     ステージが上がるほどテンポUPで派手に。
-     ========================================================= */
+  /* ===== サウンドエンジン（Web Audio API・外部ファイル不要） ===== */
   const Sound = {
-    ctx: null,
-    master: null,
-    bgmGain: null,
-    timer: null,
-    step: 0,
-    bpm: 124,
-    nextTime: 0,
-    enabled: true,
-
+    ctx: null, master: null, bgmGain: null, timer: null,
+    step: 0, bpm: 124, nextTime: 0, enabled: true,
     init() {
       if (this.ctx) return;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -400,8 +530,6 @@
       this.bgmGain.connect(this.master);
     },
     resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
-
-    // 単音
     tone(freq, t, dur, type = 'square', vol = 0.3, dest) {
       const o = this.ctx.createOscillator();
       const g = this.ctx.createGain();
@@ -413,7 +541,6 @@
       o.connect(g); g.connect(dest || this.master);
       o.start(t); o.stop(t + dur + 0.03);
     },
-    // ノイズ（ドラム用）
     noise(t, dur, vol = 0.3, hp = 1000, dest) {
       const n = Math.floor(this.ctx.sampleRate * dur);
       const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
@@ -440,25 +567,18 @@
       o.connect(g); g.connect(this.bgmGain);
       o.start(t); o.stop(t + 0.18);
     },
-
-    // 16ステップのパターン（ペンタトニックで明るく派手に）
     LEAD: [440, 523, 659, 523, 587, 659, 880, 659, 523, 659, 587, 523, 440, 523, 587, 659],
     BASS: [110, 110, 110, 110, 87.31, 87.31, 87.31, 87.31, 98, 98, 98, 98, 130.81, 130.81, 98, 98],
-
     playStep(s, t) {
-      // ドラム
       if (s % 4 === 0) this.kick(t);
-      if (s === 4 || s === 12) this.noise(t, 0.18, 0.35, 1800, this.bgmGain); // スネア
-      this.noise(t, 0.04, s % 2 === 0 ? 0.12 : 0.07, 7000, this.bgmGain);     // ハイハット
-      // ベース
+      if (s === 4 || s === 12) this.noise(t, 0.18, 0.35, 1800, this.bgmGain);
+      this.noise(t, 0.04, s % 2 === 0 ? 0.12 : 0.07, 7000, this.bgmGain);
       this.tone(this.BASS[s], t, 0.18, 'triangle', 0.32, this.bgmGain);
-      // リード（8分で間引き＝軽快に）
       if (s % 2 === 0) this.tone(this.LEAD[s], t, 0.16, 'square', 0.16, this.bgmGain);
     },
-
     startBgm(stageIndex) {
       if (!this.ctx) return;
-      this.bpm = 124 + stageIndex * 16;   // ステージごとに加速
+      this.bpm = 124 + stageIndex * 16;
       this.step = 0;
       this.nextTime = this.ctx.currentTime + 0.08;
       if (this.timer) clearInterval(this.timer);
@@ -474,14 +594,11 @@
       }
     },
     stopBgm() { if (this.timer) { clearInterval(this.timer); this.timer = null; } },
-
-    // 効果音（判定ごと）
     hit(label) {
       if (!this.enabled || !this.ctx) return;
       const t = this.ctx.currentTime;
       if (label === 'PERFECT') {
-        [523, 659, 784, 1046, 1318].forEach((f, i) =>
-          this.tone(f, t + i * 0.05, 0.25, 'square', 0.3));
+        [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, t + i * 0.05, 0.25, 'square', 0.3));
         this.noise(t, 0.3, 0.2, 6000);
       } else if (label === 'GREAT') {
         [523, 784, 1046].forEach((f, i) => this.tone(f, t + i * 0.05, 0.22, 'square', 0.28));
@@ -489,7 +606,7 @@
         [440, 660].forEach((f, i) => this.tone(f, t + i * 0.05, 0.2, 'square', 0.26));
       } else if (label === 'OK') {
         this.tone(330, t, 0.2, 'triangle', 0.26);
-      } else { // MISS
+      } else {
         this.tone(160, t, 0.32, 'sawtooth', 0.3);
         this.tone(120, t + 0.08, 0.32, 'sawtooth', 0.3);
       }
@@ -502,86 +619,247 @@
     fanfare(good) {
       if (!this.enabled || !this.ctx) return;
       const t = this.ctx.currentTime;
-      const seq = good ? [523, 659, 784, 1046, 1318, 1046, 1318]
-                       : [523, 494, 440, 392];
+      const seq = good ? [523, 659, 784, 1046, 1318, 1046, 1318] : [523, 494, 440, 392];
       seq.forEach((f, i) => this.tone(f, t + i * 0.12, 0.4, 'square', 0.32));
     },
   };
 
-  // ボール位置を時間から計算（左→右→左 の往復）
+  /* ===== VFX（Canvasパーティクル） ===== */
+  const vctx = els.vfx.getContext('2d');
+  let cw = 0, ch = 0, dpr = 1;
+  let particles = [];
+  let shakeMag = 0;
+  let lastTs = 0;
+
+  function resizeCanvas() {
+    const r = els.stageArea.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cw = r.width; ch = r.height;
+    els.vfx.width = Math.round(cw * dpr);
+    els.vfx.height = Math.round(ch * dpr);
+    els.vfx.style.width = cw + 'px';
+    els.vfx.style.height = ch + 'px';
+    vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function railLeftPx() { return els.rail.offsetLeft; }
+  function railWidthPx() { return els.rail.clientWidth; }
+  function ballCenterX(pct) { return railLeftPx() + pct / 100 * railWidthPx(); }
+
+  const CONFETTI_COLORS = ['#ff5d8f', '#ffd93d', '#00d4ff', '#7ed957', '#b388ff', '#ff9a5c', '#ffffff'];
+
+  function addParticle(p) { if (particles.length < 600) particles.push(p); }
+
+  function spawnTrail(x, y) {
+    addParticle({
+      type: 'trail', x: x + (Math.random() - 0.5) * 6, y: y + (Math.random() - 0.5) * 6,
+      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4 - 0.2,
+      life: 1, decay: 0.04 + Math.random() * 0.03, size: 6 + Math.random() * 6, color: curAccent,
+    });
+  }
+  function burstConfetti(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 2 + Math.random() * 6;
+      addParticle({
+        type: 'confetti', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+        life: 1, decay: 0.012 + Math.random() * 0.012,
+        size: 5 + Math.random() * 7, color: CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0],
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4, grav: 0.16,
+      });
+    }
+  }
+  function burstSparks(x, y, n, color) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 3 + Math.random() * 7;
+      addParticle({
+        type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 1, decay: 0.03 + Math.random() * 0.03, size: 2 + Math.random() * 3, color: color || '#fff',
+      });
+    }
+  }
+  function addRing(x, y, color) {
+    addParticle({ type: 'ring', x, y, r: 6, vr: 3.4, life: 1, decay: 0.04, color: color || '#fff', lw: 4 });
+  }
+
+  function effectFor(label, x, y) {
+    const c = ch / 2;
+    if (label === 'PERFECT') { burstConfetti(x, c, 70); burstSparks(x, c, 24, '#fff'); addRing(x, c, '#fff'); addRing(x, c, curAccent); shakeMag = 16; }
+    else if (label === 'GREAT') { burstConfetti(x, c, 36); burstSparks(x, c, 14, curAccent); addRing(x, c, curAccent); shakeMag = 10; }
+    else if (label === 'GOOD') { burstSparks(x, c, 22, curAccent); addRing(x, c, curAccent); shakeMag = 6; }
+    else if (label === 'OK') { burstSparks(x, c, 10, '#ffd2a6'); shakeMag = 3; }
+    else { burstSparks(x, c, 8, '#888'); shakeMag = 4; }
+  }
+
+  function renderVfx(dt) {
+    vctx.clearRect(0, 0, cw, ch);
+
+    // 進行中：ボール下の追従グロー
+    if (running && gameMode === 'themed') {
+      const bx = ballCenterX(parseFloat(els.ball.style.left) || 4);
+      const g = vctx.createRadialGradient(bx, ch / 2, 0, bx, ch / 2, 60);
+      g.addColorStop(0, hexA(curAccent, 0.5));
+      g.addColorStop(1, hexA(curAccent, 0));
+      vctx.globalCompositeOperation = 'lighter';
+      vctx.fillStyle = g;
+      vctx.beginPath(); vctx.arc(bx, ch / 2, 60, 0, Math.PI * 2); vctx.fill();
+      vctx.globalCompositeOperation = 'source-over';
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+
+      if (p.type === 'trail') {
+        p.x += p.vx; p.y += p.vy;
+        vctx.globalCompositeOperation = 'lighter';
+        vctx.globalAlpha = p.life * 0.6;
+        vctx.fillStyle = p.color;
+        vctx.beginPath(); vctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); vctx.fill();
+      } else if (p.type === 'confetti') {
+        p.vy += p.grav; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        vctx.globalCompositeOperation = 'source-over';
+        vctx.globalAlpha = Math.min(1, p.life * 1.4);
+        vctx.save();
+        vctx.translate(p.x, p.y); vctx.rotate(p.rot);
+        vctx.fillStyle = p.color;
+        vctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        vctx.restore();
+      } else if (p.type === 'spark') {
+        p.vx *= 0.92; p.vy *= 0.92; p.x += p.vx; p.y += p.vy;
+        vctx.globalCompositeOperation = 'lighter';
+        vctx.globalAlpha = p.life;
+        vctx.fillStyle = p.color;
+        vctx.beginPath(); vctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); vctx.fill();
+      } else if (p.type === 'ring') {
+        p.r += p.vr;
+        vctx.globalCompositeOperation = 'lighter';
+        vctx.globalAlpha = p.life;
+        vctx.strokeStyle = p.color;
+        vctx.lineWidth = p.lw * p.life;
+        vctx.beginPath(); vctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); vctx.stroke();
+      }
+    }
+    vctx.globalAlpha = 1;
+    vctx.globalCompositeOperation = 'source-over';
+
+    // 画面シェイク
+    if (shakeMag > 0.4) {
+      const sx = (Math.random() - 0.5) * shakeMag;
+      const sy = (Math.random() - 0.5) * shakeMag;
+      els.game.style.transform = 'translate(' + sx + 'px,' + sy + 'px)';
+      shakeMag *= 0.86;
+    } else if (shakeMag !== 0) {
+      shakeMag = 0; els.game.style.transform = '';
+    }
+  }
+
+  function hexA(hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  /* ===== ボール往復 ===== */
   function ballPct(elapsed) {
-    const t = (elapsed % duration) / duration;   // 0..1
-    const tri = t < 0.5 ? t * 2 : (1 - t) * 2;     // 三角波 0..1..0
-    // 端での張り付きを避けるため少しマージン
+    const t = (elapsed % duration) / duration;
+    const tri = t < 0.5 ? t * 2 : (1 - t) * 2;
     return 4 + tri * 92;
   }
 
-  function loop(now) {
-    if (!running) return;
-    const elapsed = now - startTime;
-    const pct = ballPct(elapsed);
-    els.ball.style.left = pct + '%';
-    rafId = requestAnimationFrame(loop);
+  function masterLoop(ts) {
+    const dt = Math.min(40, ts - lastTs || 16); lastTs = ts;
+    if (running) {
+      const elapsed = ts - startTime;
+      const pct = ballPct(elapsed);
+      els.ball.style.left = pct + '%';
+      if (gameMode === 'themed') {
+        spawnTrail(ballCenterX(pct), ch / 2);
+        els.sceneBg.style.transform = 'scale(1.08) translateX(' + ((pct - 50) / 50 * -10) + 'px)';
+      }
+    }
+    renderVfx(dt);
+    requestAnimationFrame(masterLoop);
   }
 
+  /* ===== ステージ進行 ===== */
   function setupStage() {
     const cfg = stageConfig[stage];
     duration = cfg.duration;
+    curAccent = gameMode === 'themed' ? cfg.accent : '#00d4ff';
     els.stageNum.textContent = stage + 1;
-    els.speedLabel.textContent = 'SPEED ' + '★'.repeat(stage + 1) + '☆'.repeat(TOTAL_STAGES - stage - 1);
+    const stars = '★'.repeat(stage + 1) + '☆'.repeat(TOTAL_STAGES - stage - 1);
+    els.speedLabel.textContent = 'SPEED ' + stars;
 
     els.ball.classList.remove('score-in');
     els.target.classList.remove('pop');
+    els.ball.style.left = '4%';
 
     if (gameMode === 'simple') {
-      // シンプル版：● と ▽、背景なし
       els.ball.classList.add('simple');
       els.target.classList.add('simple');
-      els.ball.textContent = '';
-      els.target.textContent = '';
+      els.ball.style.backgroundImage = '';
+      els.target.style.backgroundImage = '';
+      els.sceneBg.style.backgroundImage = '';
       els.sceneBg.style.background = 'linear-gradient(135deg, #20243a, #161a2e)';
       els.stageName.textContent = '';
-      els.sceneDeco.innerHTML = '';
     } else {
-      // イラスト版：テーマ（背景・装飾・動くもの→入れる場所）
       els.ball.classList.remove('simple');
       els.target.classList.remove('simple');
-      els.sceneBg.style.background = cfg.bg;
-      els.stageName.textContent = cfg.name;
-      els.sceneDeco.innerHTML = cfg.deco
-        .map(([emoji, x, y]) => '<span style="left:' + x + ';top:' + y + '">' + emoji + '</span>')
-        .join('');
-      els.ball.textContent = cfg.obj;
-      els.target.textContent = cfg.goal;
+      els.ball.style.backgroundImage = 'url(' + cfg.ball + ')';
+      els.target.style.backgroundImage = 'url(' + cfg.goal + ')';
+      els.sceneBg.style.background = '';
+      els.sceneBg.style.backgroundImage = 'url(' + cfg.bg + ')';
+      els.sceneBg.classList.remove('fade'); void els.sceneBg.offsetWidth; els.sceneBg.classList.add('fade');
+      els.stageName.textContent = cfg.emoji + ' ' + cfg.name;
     }
 
-    // ターゲットは 15%〜85% のランダム位置
     targetPct = 15 + Math.random() * 70;
     els.target.style.left = targetPct + '%';
     els.targetLine.style.left = targetPct + '%';
 
-    els.actionBtn.disabled = false;
-    els.actionBtn.textContent = 'CLICK!';
+    els.actionBtn.disabled = true;
+    els.actionBtn.textContent = 'READY…';
 
-    Sound.startBgm(stage);
+    // タイトルカード演出 → 700ms後に開始
+    showStageCard(cfg, stars);
+    running = false;
+    setTimeout(() => {
+      els.actionBtn.disabled = false;
+      els.actionBtn.textContent = 'CLICK!';
+      Sound.startBgm(stage);
+      running = true;
+      startTime = performance.now();
+    }, 750);
+  }
 
-    running = true;
-    startTime = performance.now();
-    rafId = requestAnimationFrame(loop);
+  function showStageCard(cfg, stars) {
+    if (gameMode === 'simple') {
+      els.cardNum.textContent = 'STAGE ' + (stage + 1);
+      els.cardTitle.textContent = 'SIMPLE';
+    } else {
+      els.cardNum.textContent = 'STAGE ' + (stage + 1);
+      els.cardTitle.textContent = cfg.emoji + ' ' + cfg.name;
+    }
+    els.cardSpd.textContent = 'SPEED ' + stars;
+    els.stageCard.classList.remove('show');
+    void els.stageCard.offsetWidth;
+    els.stageCard.classList.add('show');
   }
 
   function judge() {
     if (!running) return;
     running = false;
-    cancelAnimationFrame(rafId);
     els.actionBtn.disabled = true;
 
     const elapsed = performance.now() - startTime;
     const ballPos = ballPct(elapsed);
-
-    // px換算でズレを出す
-    const railWidth = els.rail.clientWidth;
-    const diffPx = Math.abs(ballPos - targetPct) / 100 * railWidth;
+    const diffPx = Math.abs(ballPos - targetPct) / 100 * railWidthPx();
 
     let label, gain, color;
     if (diffPx <= 6)        { label = 'PERFECT'; gain = 100; color = '#00ffae'; }
@@ -596,7 +874,9 @@
     Sound.stopBgm();
     Sound.hit(label);
 
-    // 近ければ「スポッと入る」演出
+    els.ball.style.left = ballPos + '%';
+    effectFor(label, ballCenterX(ballPos));
+
     if (gain >= 40) {
       els.ball.style.left = targetPct + '%';
       requestAnimationFrame(() => els.ball.classList.add('score-in'));
@@ -608,41 +888,33 @@
     setTimeout(() => {
       hideResult();
       stage++;
-      if (stage >= TOTAL_STAGES) {
-        endGame();
-      } else {
-        setupStage();
-      }
-    }, 1100);
+      if (stage >= TOTAL_STAGES) endGame();
+      else setupStage();
+    }, 1200);
   }
 
   function showResult(label, gain, diffPx, color) {
     els.result.style.color = color;
-    els.result.innerHTML = label +
-      '<span class="sub">ズレ ' + Math.round(diffPx) + 'px / +' + gain + '点</span>';
+    els.result.innerHTML = label + '<span class="sub">ズレ ' + Math.round(diffPx) + 'px / +' + gain + '点</span>';
     els.result.classList.add('show');
   }
-  function hideResult() {
-    els.result.classList.remove('show');
-  }
+  function hideResult() { els.result.classList.remove('show'); }
 
   function startGame(mode) {
     if (mode === 'simple' || mode === 'themed') gameMode = mode;
-    Sound.init();
-    Sound.resume();
-    Sound.start();
-    stage = 0;
-    score = 0;
+    Sound.init(); Sound.resume(); Sound.start();
+    stage = 0; score = 0;
     els.scoreNum.textContent = 0;
     els.overlay.classList.add('hidden');
+    resizeCanvas();
     setupStage();
   }
 
   function endGame() {
     Sound.stopBgm();
     const max = TOTAL_STAGES * 100;
-    let rank, msg;
     const ratio = score / max;
+    let rank, msg;
     if (ratio >= 0.95)      { rank = 'S'; msg = '神業！'; }
     else if (ratio >= 0.8)  { rank = 'A'; msg = 'お見事！'; }
     else if (ratio >= 0.6)  { rank = 'B'; msg = 'なかなか！'; }
@@ -650,10 +922,12 @@
     else                    { rank = 'D'; msg = '練習あるのみ！'; }
     Sound.fanfare(ratio >= 0.6);
 
+    if (ratio >= 0.6) { burstConfetti(cw / 2, ch / 2, 120); shakeMag = 12; }
+
     const modeLabel = gameMode === 'simple' ? '⚪ シンプル版' : '🎨 イラスト版';
     els.overlay.innerHTML =
       '<h1>RESULT</h1>' +
-      '<div class="rank" style="color:var(--accent)">' + rank + '</div>' +
+      '<div class="rank">' + rank + '</div>' +
       '<p>' + msg + '</p>' +
       '<div class="big-score">' + score + ' / ' + max + '</div>' +
       '<div class="mode-select">' +
@@ -662,14 +936,10 @@
       '</div>';
     els.overlay.classList.remove('hidden');
     document.getElementById('retryBtn').addEventListener('click', () => startGame(gameMode));
-    document.getElementById('modeBtn').addEventListener('click', showStartScreen);
+    document.getElementById('modeBtn').addEventListener('click', () => location.reload());
   }
 
-  function showStartScreen() {
-    location.reload();
-  }
-
-  // 操作：ボタン or スペース/クリックで判定
+  /* ===== 入力 ===== */
   els.actionBtn.addEventListener('click', judge);
   els.startThemed.addEventListener('click', () => startGame('themed'));
   els.startSimple.addEventListener('click', () => startGame('simple'));
@@ -678,10 +948,38 @@
     els.muteBtn.textContent = Sound.enabled ? '🔊' : '🔇';
   });
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-      e.preventDefault();
-      if (running) judge();
-    }
+    if (e.code === 'Space') { e.preventDefault(); if (running) judge(); }
+  });
+
+  /* ===== プリロード ===== */
+  function preloadAll(done) {
+    const urls = [];
+    stageConfig.forEach(c => { urls.push(c.bg, c.ball, c.goal); });
+    let loaded = 0;
+    const finish = () => { loaded++; if (loaded >= urls.length) done(); };
+    urls.forEach(u => {
+      const img = new Image();
+      img.onload = finish; img.onerror = finish;
+      img.src = u;
+    });
+    // 念のためのタイムアウト
+    setTimeout(done, 6000);
+  }
+
+  function buildPreview() {
+    els.preview.innerHTML = stageConfig
+      .map(c => '<div class="chip" style="background-image:url(' + c.ball + ')"></div>')
+      .join('');
+  }
+
+  // 初期化
+  resizeCanvas();
+  requestAnimationFrame(masterLoop);
+  let started = false;
+  preloadAll(() => {
+    if (started) return; started = true;
+    buildPreview();
+    els.loading.classList.add('hidden');
   });
 })();
 </script>
