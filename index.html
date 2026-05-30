@@ -69,16 +69,50 @@
   /* レール表示エリア */
   .stage-area {
     position: relative;
-    height: 160px;
+    height: 190px;
     display: flex;
     align-items: center;
     margin-bottom: 24px;
+    padding: 0 18px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  /* ステージごとの背景シーン */
+  .scene-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transition: background 0.5s ease;
+  }
+  .scene-deco {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .scene-deco span {
+    position: absolute;
+    font-size: 30px;
+    opacity: 0.9;
+  }
+  .stage-name {
+    position: absolute;
+    left: 14px;
+    top: 10px;
+    z-index: 3;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    letter-spacing: 1px;
   }
   .rail {
     position: relative;
+    z-index: 2;
     width: 100%;
     height: 8px;
-    background: var(--rail);
+    background: rgba(255,255,255,0.25);
     border-radius: 4px;
   }
   .rail::before, .rail::after {
@@ -93,38 +127,51 @@
   .rail::before { left: -3px; }
   .rail::after { right: -3px; }
 
-  /* ターゲット ▽ */
+  /* ターゲット（入れる場所の絵文字） */
   .target {
     position: absolute;
     top: 50%;
+    z-index: 3;
     transform: translate(-50%, -50%);
-    width: 0; height: 0;
-    border-left: 14px solid transparent;
-    border-right: 14px solid transparent;
-    border-top: 22px solid var(--target);
-    margin-top: -26px;
-    filter: drop-shadow(0 0 6px rgba(255, 217, 61, 0.6));
+    font-size: 44px;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px rgba(255, 217, 61, 0.55));
   }
   .target-line {
     position: absolute;
     top: 50%;
+    z-index: 2;
     transform: translateX(-50%);
     width: 2px;
-    height: 30px;
-    background: rgba(255, 217, 61, 0.5);
-    margin-top: -15px;
+    height: 46px;
+    background: rgba(255, 255, 255, 0.45);
+    margin-top: -23px;
   }
 
-  /* ボール ● */
+  /* 動くもの（ボール役の絵文字） */
   .ball {
     position: absolute;
     top: 50%;
+    left: 4%;
+    z-index: 4;
     transform: translate(-50%, -50%);
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff, var(--ball));
-    box-shadow: 0 0 14px rgba(255, 107, 107, 0.8);
+    font-size: 34px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
+    will-change: left, transform, opacity;
+  }
+  .ball.score-in {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0;
+  }
+  .target.pop {
+    animation: targetPop 0.35s ease;
+  }
+  @keyframes targetPop {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.4); }
+    100% { transform: translate(-50%, -50%) scale(1); }
   }
 
   /* 結果ポップ */
@@ -192,6 +239,41 @@
   .overlay .big-score { font-size: 48px; font-weight: 800; color: var(--target); margin: 14px 0; }
   .overlay .btn { max-width: 320px; margin-top: 18px; }
   .rank { font-size: 56px; font-weight: 900; margin: 6px 0; }
+  .mode-select {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 360px;
+    margin-top: 16px;
+  }
+  .mode-select .btn { flex: 1; min-width: 140px; margin-top: 0; font-size: 18px; }
+  .btn-sub {
+    background: linear-gradient(135deg, #6c7a96, #97a6c2);
+    color: #0c1322;
+    box-shadow: 0 8px 24px rgba(120, 140, 180, 0.35);
+  }
+  .btn-sub:hover { box-shadow: 0 10px 28px rgba(120, 140, 180, 0.5); }
+
+  /* シンプル版の見た目（● と ▽） */
+  .ball.simple {
+    width: 26px; height: 26px;
+    font-size: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--ball));
+    box-shadow: 0 0 14px rgba(255, 107, 107, 0.8);
+    filter: none;
+  }
+  .target.simple {
+    width: 0; height: 0;
+    font-size: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid var(--target);
+    margin-top: -26px;
+    filter: drop-shadow(0 0 6px rgba(255, 217, 61, 0.6));
+  }
 </style>
 </head>
 <body>
@@ -204,6 +286,9 @@
     <div class="speed-label" id="speedLabel">SPEED ★☆☆☆☆</div>
 
     <div class="stage-area">
+      <div class="scene-bg" id="sceneBg"></div>
+      <div class="scene-deco" id="sceneDeco"></div>
+      <div class="stage-name" id="stageName"></div>
       <div class="rail" id="rail">
         <div class="target-line" id="targetLine"></div>
         <div class="target" id="target"></div>
@@ -218,21 +303,46 @@
   <!-- スタート / 終了オーバーレイ -->
   <div class="overlay" id="overlay">
     <h1>ジャスト<span class="em">クリック！</span></h1>
-    <p>左右に往復するボールが<br><span style="color:var(--target)">▽ ターゲット</span>に重なった瞬間にクリック！</p>
+    <p>左右に動くものを、入れる場所に<br>ピッタリ重なった瞬間にクリック！</p>
     <p>ピッタリ狙うほど高得点。全5ステージ、だんだん速くなるよ。</p>
-    <button class="btn" id="startBtn">START</button>
+    <p style="color:#9aa0b5; font-size:14px; margin-top:6px;">モードを選んでスタート</p>
+    <div class="mode-select">
+      <button class="btn" id="startThemed">🎨 イラスト版</button>
+      <button class="btn btn-sub" id="startSimple">⚪ シンプル版</button>
+    </div>
   </div>
 
 <script>
 (() => {
   const TOTAL_STAGES = 5;
   // ステージごとの設定：speed = 1往復にかかる時間(ms)が短いほど速い
+  // theme: 動くもの(obj) → 入れる場所(goal)、背景(bg)、装飾(deco)
   const stageConfig = [
-    { duration: 2600 },
-    { duration: 2100 },
-    { duration: 1650 },
-    { duration: 1250 },
-    { duration: 900  },
+    {
+      duration: 2600, name: '🍙 ランチタイム', obj: '🍙', goal: '😋',
+      bg: 'linear-gradient(135deg, #ffd29a, #ff9a76)',
+      deco: [['🍱', '12%', '70%'], ['🍵', '82%', '66%'], ['🥢', '46%', '78%']],
+    },
+    {
+      duration: 2100, name: '🚶 通勤ラッシュ', obj: '🚶', goal: '🛗',
+      bg: 'linear-gradient(135deg, #cfd9e8, #8fa3bf)',
+      deco: [['🏢', '10%', '24%'], ['🏢', '30%', '20%'], ['💼', '60%', '74%'], ['☕', '86%', '72%']],
+    },
+    {
+      duration: 1650, name: '⚽ スタジアム', obj: '⚽', goal: '🥅',
+      bg: 'linear-gradient(135deg, #7ed957, #2f9e44)',
+      deco: [['🏟️', '14%', '22%'], ['🚩', '88%', '26%'], ['👟', '40%', '80%']],
+    },
+    {
+      duration: 1250, name: '🚀 宇宙開発', obj: '🚀', goal: '🌙',
+      bg: 'linear-gradient(135deg, #1b1b3a, #2c2c6c)',
+      deco: [['⭐', '18%', '26%'], ['✨', '50%', '18%'], ['⭐', '78%', '30%'], ['🛰️', '64%', '72%']],
+    },
+    {
+      duration: 900, name: '⚾ 大リーグ', obj: '⚾', goal: '🧤',
+      bg: 'linear-gradient(135deg, #14213d, #2a4d69)',
+      deco: [['💡', '12%', '18%'], ['💡', '50%', '14%'], ['💡', '86%', '18%'], ['🏟️', '70%', '74%']],
+    },
   ];
 
   const els = {
@@ -240,18 +350,23 @@
     ball: document.getElementById('ball'),
     target: document.getElementById('target'),
     targetLine: document.getElementById('targetLine'),
+    sceneBg: document.getElementById('sceneBg'),
+    sceneDeco: document.getElementById('sceneDeco'),
+    stageName: document.getElementById('stageName'),
     stageNum: document.getElementById('stageNum'),
     scoreNum: document.getElementById('scoreNum'),
     speedLabel: document.getElementById('speedLabel'),
     actionBtn: document.getElementById('actionBtn'),
     result: document.getElementById('result'),
     overlay: document.getElementById('overlay'),
-    startBtn: document.getElementById('startBtn'),
+    startThemed: document.getElementById('startThemed'),
+    startSimple: document.getElementById('startSimple'),
     muteBtn: document.getElementById('muteBtn'),
   };
 
   let stage = 0;          // 0-indexed
   let score = 0;
+  let gameMode = 'themed'; // 'themed' or 'simple'
   let targetPct = 50;     // ターゲット位置（レール幅に対する%）
   let rafId = null;
   let startTime = 0;
@@ -410,9 +525,35 @@
   }
 
   function setupStage() {
-    duration = stageConfig[stage].duration;
+    const cfg = stageConfig[stage];
+    duration = cfg.duration;
     els.stageNum.textContent = stage + 1;
     els.speedLabel.textContent = 'SPEED ' + '★'.repeat(stage + 1) + '☆'.repeat(TOTAL_STAGES - stage - 1);
+
+    els.ball.classList.remove('score-in');
+    els.target.classList.remove('pop');
+
+    if (gameMode === 'simple') {
+      // シンプル版：● と ▽、背景なし
+      els.ball.classList.add('simple');
+      els.target.classList.add('simple');
+      els.ball.textContent = '';
+      els.target.textContent = '';
+      els.sceneBg.style.background = 'linear-gradient(135deg, #20243a, #161a2e)';
+      els.stageName.textContent = '';
+      els.sceneDeco.innerHTML = '';
+    } else {
+      // イラスト版：テーマ（背景・装飾・動くもの→入れる場所）
+      els.ball.classList.remove('simple');
+      els.target.classList.remove('simple');
+      els.sceneBg.style.background = cfg.bg;
+      els.stageName.textContent = cfg.name;
+      els.sceneDeco.innerHTML = cfg.deco
+        .map(([emoji, x, y]) => '<span style="left:' + x + ';top:' + y + '">' + emoji + '</span>')
+        .join('');
+      els.ball.textContent = cfg.obj;
+      els.target.textContent = cfg.goal;
+    }
 
     // ターゲットは 15%〜85% のランダム位置
     targetPct = 15 + Math.random() * 70;
@@ -455,6 +596,13 @@
     Sound.stopBgm();
     Sound.hit(label);
 
+    // 近ければ「スポッと入る」演出
+    if (gain >= 40) {
+      els.ball.style.left = targetPct + '%';
+      requestAnimationFrame(() => els.ball.classList.add('score-in'));
+      els.target.classList.add('pop');
+    }
+
     showResult(label, gain, diffPx, color);
 
     setTimeout(() => {
@@ -478,7 +626,8 @@
     els.result.classList.remove('show');
   }
 
-  function startGame() {
+  function startGame(mode) {
+    if (mode === 'simple' || mode === 'themed') gameMode = mode;
     Sound.init();
     Sound.resume();
     Sound.start();
@@ -501,19 +650,29 @@
     else                    { rank = 'D'; msg = '練習あるのみ！'; }
     Sound.fanfare(ratio >= 0.6);
 
+    const modeLabel = gameMode === 'simple' ? '⚪ シンプル版' : '🎨 イラスト版';
     els.overlay.innerHTML =
       '<h1>RESULT</h1>' +
       '<div class="rank" style="color:var(--accent)">' + rank + '</div>' +
       '<p>' + msg + '</p>' +
       '<div class="big-score">' + score + ' / ' + max + '</div>' +
-      '<button class="btn" id="retryBtn">もう一回！</button>';
+      '<div class="mode-select">' +
+        '<button class="btn" id="retryBtn">もう一回！（' + modeLabel + '）</button>' +
+        '<button class="btn btn-sub" id="modeBtn">モード選択へ</button>' +
+      '</div>';
     els.overlay.classList.remove('hidden');
-    document.getElementById('retryBtn').addEventListener('click', startGame);
+    document.getElementById('retryBtn').addEventListener('click', () => startGame(gameMode));
+    document.getElementById('modeBtn').addEventListener('click', showStartScreen);
+  }
+
+  function showStartScreen() {
+    location.reload();
   }
 
   // 操作：ボタン or スペース/クリックで判定
   els.actionBtn.addEventListener('click', judge);
-  els.startBtn.addEventListener('click', startGame);
+  els.startThemed.addEventListener('click', () => startGame('themed'));
+  els.startSimple.addEventListener('click', () => startGame('simple'));
   els.muteBtn.addEventListener('click', () => {
     Sound.enabled = !Sound.enabled;
     els.muteBtn.textContent = Sound.enabled ? '🔊' : '🔇';
